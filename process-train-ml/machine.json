@@ -1,0 +1,114 @@
+{
+    "StartAt": "Generate dataset",
+    "States": {
+      "Generate dataset": {
+        "Resource": "arn:aws:lambda:sa-east-1:1234567890:function:FeatureTransform-LambaForDataGeneration-17M8LX7IO9LUW",
+        "Type": "Task",
+        "Next": "Standardization: x' = (x - x̄) / σ"
+      },
+      "Standardization: x' = (x - x̄) / σ": {
+        "Resource": "arn:aws:states:::sagemaker:createProcessingJob.sync",
+        "Parameters": {
+          "ProcessingResources": {
+            "ClusterConfig": {
+              "InstanceCount": 1,
+              "InstanceType": "ml.m5.xlarge",
+              "VolumeSizeInGB": 10
+            }
+          },
+          "ProcessingInputs": [
+              {
+                  "InputName": "input-1",
+                  "S3Input": {
+                      "S3Uri": "s3://featuretransform-bucketforcodeanddata-1jn1le6gadwfz/input/raw.csv",
+                      "LocalPath": "/opt/ml/processing/input",
+                      "S3DataType": "S3Prefix",
+                      "S3InputMode": "File",
+                      "S3DataDistributionType": "FullyReplicated",
+                      "S3CompressionType": "None"
+                  }
+              },
+              {
+                  "InputName": "code",
+                  "S3Input": {
+                      "S3Uri": "s3://featuretransform-bucketforcodeanddata-1jn1le6gadwfz/code/transform.py",
+                      "LocalPath": "/opt/ml/processing/input/code",
+                      "S3DataType": "S3Prefix",
+                      "S3InputMode": "File",
+                      "S3DataDistributionType": "FullyReplicated",
+                      "S3CompressionType": "None"
+                  }
+              }
+          ],
+          "ProcessingOutputConfig": {
+              "Outputs": [
+                  {
+                      "OutputName": "train_data",
+                      "S3Output": {
+                          "S3Uri": "s3://featuretransform-bucketforcodeanddata-1jn1le6gadwfz/train",
+                          "LocalPath": "/opt/ml/processing/output/train",
+                          "S3UploadMode": "EndOfJob"
+                      }
+                  }
+              ]
+          },
+          "AppSpecification": {
+              "ImageUri": "737474898029.dkr.ecr.sa-east-1.amazonaws.com/sagemaker-scikit-learn:0.20.0-cpu-py3",
+              "ContainerEntrypoint": [
+                  "python3",
+                  "/opt/ml/processing/input/code/transform.py"
+              ]
+          },
+          "StoppingCondition": {
+              "MaxRuntimeInSeconds": 300
+          },
+          "RoleArn": "arn:aws:iam::1234567890:role/SageMakerAPIExecutionRole-AIDACKCEVSQ6C2EXAMPLE",
+          "ProcessingJobName.$": "$$.Execution.Name"
+        },
+        "Type": "Task",
+        "Next": "Train model (XGBoost)"
+      },
+      "Train model (XGBoost)": {
+        "Resource": "arn:aws:states:::sagemaker:createTrainingJob.sync",
+        "Parameters": {
+          "AlgorithmSpecification": {
+            "TrainingImage": "855470959533.dkr.ecr.sa-east-1.amazonaws.com/xgboost:latest",
+            "TrainingInputMode": "File"
+          },
+          "OutputDataConfig": {
+            "S3OutputPath": "s3://featuretransform-bucketforcodeanddata-1jn1le6gadwfz/models"
+          },
+          "StoppingCondition": {
+            "MaxRuntimeInSeconds": 86400
+          },
+          "ResourceConfig": {
+            "InstanceCount": 1,
+            "InstanceType": "ml.m5.xlarge",
+            "VolumeSizeInGB": 30
+          },
+          "RoleArn": "arn:aws:iam::1234567890:role/SageMakerAPIExecutionRole-AIDACKCEVSQ6C2EXAMPLE",
+          "InputDataConfig": [
+            {
+              "DataSource": {
+                "S3DataSource": {
+                  "S3DataDistributionType": "ShardedByS3Key",
+                  "S3DataType": "S3Prefix",
+                  "S3Uri": "s3://featuretransform-bucketforcodeanddata-1jn1le6gadwfz"
+                }
+              },
+              "ChannelName": "train",
+              "ContentType": "text/csv"
+            }
+          ],
+          "HyperParameters": {
+            "objective": "reg:logistic",
+            "eval_metric": "rmse",
+            "num_round": "5"
+          },
+          "TrainingJobName.$": "$$.Execution.Name"
+        },
+        "Type": "Task",
+        "End": true
+      }
+    }
+  }

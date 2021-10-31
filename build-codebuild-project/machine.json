@@ -1,0 +1,51 @@
+{
+    "Comment": "An example of using CodeBuild to run tests, get test results and send a notification.",
+    "StartAt": "Trigger CodeBuild Build",
+    "States": {
+      "Trigger CodeBuild Build": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::codebuild:startBuild.sync",
+        "Parameters": {
+          "ProjectName": "CodeBuildProject-Dtw1jBhEYGDf"
+        },
+        "Next": "Get Test Results"
+      },
+      "Get Test Results": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::codebuild:batchGetReports",
+        "Parameters": {
+          "ReportArns.$": "$.Build.ReportArns"
+        },
+        "Next": "All Tests Passed?"
+      },
+      "All Tests Passed?": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.Reports[0].Status",
+            "StringEquals": "SUCCEEDED",
+            "Next": "Notify Success"
+          }
+        ],
+        "Default": "Notify Failure"
+      },
+      "Notify Success": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::sns:publish",
+        "Parameters": {
+          "Message": "CodeBuild build tests succeeded",
+          "TopicArn": "arn:aws:sns:sa-east-1:123456789012:StepFunctionsSample-CodeBuildExecution3da9ead6-bc1f-4441-99ac-591c140019c4-SNSTopic-EVYLVNGW85JP"
+        },
+        "End": true
+      },
+      "Notify Failure": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::sns:publish",
+        "Parameters": {
+          "Message": "CodeBuild build tests failed",
+          "TopicArn": "arn:aws:sns:sa-east-1:123456789012:StepFunctionsSample-CodeBuildExecution3da9ead6-bc1f-4441-99ac-591c140019c4-SNSTopic-EVYLVNGW85JP"
+        },
+        "End": true
+      }
+    }
+  }

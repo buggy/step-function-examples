@@ -1,0 +1,65 @@
+{
+    "StartAt": "Check Stock Price",
+    "States": {
+        "Check Stock Price": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-1:111122223333:function:StepFunctionsSample-HelloLam-CheckStockPriceLambda-444455556666",
+            "Next": "Generate Buy/Sell recommendation"
+        },
+        "Generate Buy/Sell recommendation": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-1:111122223333:function:StepFunctionsSample-Hello-GenerateBuySellRecommend-123456789012",
+            "ResultPath": "$.recommended_type",
+            "Next": "Request Human Approval"
+        },
+        "Request Human Approval": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sqs:sendMessage.waitForTaskToken",
+            "Parameters": {
+                "QueueUrl": "https://sqs.us-west-1.amazonaws.com/111122223333/StepFunctionsSample-HelloLambda4444-5555-6666-RequestHumanApprovalSqs-777788889999",
+                "MessageBody": {
+                    "Input.$": "$",
+                    "TaskToken.$": "$$.Task.Token"
+                }
+            },
+            "ResultPath": null,
+            "Next": "Buy or Sell?"
+        },
+        "Buy or Sell?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.recommended_type",
+                    "StringEquals": "buy",
+                    "Next": "Buy Stock"
+                },
+                {
+                    "Variable": "$.recommended_type",
+                    "StringEquals": "sell",
+                    "Next": "Sell Stock"
+                }
+            ]
+        },
+        "Buy Stock": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-1:111122223333:function:StepFunctionsSample-HelloLambda-BuyStockLambda-000000000000",
+            "Next": "Report Result"
+        },
+        "Sell Stock": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-west-1:111122223333:function:StepFunctionsSample-HelloLambda-SellStockLambda-111111111111",
+            "Next": "Report Result"
+        },
+        "Report Result": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "arn:aws:sns:us-west-1:111122223333:StepFunctionsSample-HelloLambda1111-2222-3333-ReportResultSnsTopic-222222222222",
+                "Message": {
+                    "Input.$": "$"
+                }
+            },
+            "End": true
+        }
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "Comment": "An example of the Amazon States Language for fanning out AWS Batch job",
+    "StartAt": "Generate batch job input",
+    "TimeoutSeconds": 3600,
+    "States": {
+      "Generate batch job input": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "OutputPath": "$.Payload",
+        "Parameters": {
+          "FunctionName": "<GENERATE_BATCH_JOB_INPUT_LAMBDA_FUNCTION_NAME>"
+        },
+        "Next": "Fan out batch jobs"
+      },
+      "Fan out batch jobs": {
+        "Comment": "Start multiple executions of batch job depending on pre-processed data",
+        "Type": "Map",
+        "End": true,
+        "ItemsPath": "$",
+        "Parameters": {
+          "BatchNumber.$": "$$.Map.Item.Value"
+        },
+        "Iterator": {
+          "StartAt": "Submit Batch Job",
+          "States": {
+            "Submit Batch Job": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::batch:submitJob.sync",
+              "Parameters": {
+                "JobName": "BatchJobFanOut",
+                "JobQueue": "<BATCH_QUEUE_ARN>",
+                "JobDefinition": "<BATCH_JOB_DEFINITION_ARN>"
+              },
+              "End": true
+            }
+          }
+        }
+      }
+    }
+  }

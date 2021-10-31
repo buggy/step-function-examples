@@ -1,0 +1,151 @@
+{
+    "StartAt": "Generate Training Dataset",
+    "States": {
+        "Generate Training Dataset": {
+            "Resource": "arn:aws:lambda:us-west-2:012345678912:function:StepFunctionsSample-SageMa-LambdaForDataGeneration-1TF67BUE5A12U",
+            "Type": "Task",
+            "Next": "HyperparameterTuning (XGBoost)"
+        },
+        "HyperparameterTuning (XGBoost)": {
+            "Resource": "arn:aws:states:::sagemaker:createHyperParameterTuningJob.sync",
+            "Parameters": {
+                "HyperParameterTuningJobName.$": "$.body.jobName",
+                "HyperParameterTuningJobConfig": {
+                    "Strategy": "Bayesian",
+                    "HyperParameterTuningJobObjective": {
+                        "Type": "Minimize",
+                        "MetricName": "validation:rmse"
+                    },
+                    "ResourceLimits": {
+                        "MaxNumberOfTrainingJobs": 2,
+                        "MaxParallelTrainingJobs": 2
+                    },
+                    "ParameterRanges": {
+                        "ContinuousParameterRanges": [{
+                                "Name": "alpha",
+                                "MinValue": "0",
+                                "MaxValue": "1000",
+                                "ScalingType": "Auto"
+                            },
+                            {
+                                "Name": "gamma",
+                                "MinValue": "0",
+                                "MaxValue": "5",
+                                "ScalingType": "Auto"
+                            }
+                        ],
+                        "IntegerParameterRanges": [{
+                                "Name": "max_delta_step",
+                                "MinValue": "0",
+                                "MaxValue": "10",
+                                "ScalingType": "Auto"
+                            },
+                            {
+                                "Name": "max_depth",
+                                "MinValue": "0",
+                                "MaxValue": "10",
+                                "ScalingType": "Auto"
+                            }
+                        ]
+                    }
+                },
+                "TrainingJobDefinition": {
+                    "AlgorithmSpecification": {
+                        "TrainingImage": "433757028032.dkr.ecr.us-west-2.amazonaws.com/xgboost:latest",
+                        "TrainingInputMode": "File"
+                    },
+                    "OutputDataConfig": {
+                        "S3OutputPath": "s3://stepfunctionssample-sagemak-bucketformodelanddata-80fblmdlcs9f/models"
+                    },
+                    "StoppingCondition": {
+                        "MaxRuntimeInSeconds": 86400
+                    },
+                    "ResourceConfig": {
+                        "InstanceCount": 1,
+                        "InstanceType": "ml.m4.xlarge",
+                        "VolumeSizeInGB": 30
+                    },
+                    "RoleArn": "arn:aws:iam::012345678912:role/StepFunctionsSample-SageM-SageMakerAPIExecutionRol-1MNH1VS5CGGOG",
+                    "InputDataConfig": [{
+                        "DataSource": {
+                            "S3DataSource": {
+                                "S3DataDistributionType": "FullyReplicated",
+                                "S3DataType": "S3Prefix",
+                                "S3Uri": "s3://stepfunctionssample-sagemak-bucketformodelanddata-80fblmdlcs9f/csv/train.csv"
+                            }
+                        },
+                        "ChannelName": "train",
+                        "ContentType": "text/csv"
+                    },
+                    {
+                        "DataSource": {
+                            "S3DataSource": {
+                                "S3DataDistributionType": "FullyReplicated",
+                                "S3DataType": "S3Prefix",
+                                "S3Uri": "s3://stepfunctionssample-sagemak-bucketformodelanddata-80fblmdlcs9f/csv/validation.csv"
+                            }
+                        },
+                        "ChannelName": "validation",
+                        "ContentType": "text/csv"
+                    }],
+                    "StaticHyperParameters": {
+                        "precision_dtype": "float32",
+                        "num_round": "2"
+                    }
+                }
+            },
+            "Type": "Task",
+            "Next": "Extract Model Path"
+        },
+        "Extract Model Path": {
+            "Resource": "arn:aws:lambda:us-west-2:012345678912:function:StepFunctionsSample-SageM-LambdaToExtractModelPath-V0R37CVARUS9",
+            "Type": "Task",
+            "Next": "HyperparameterTuning - Save Model"
+        },
+        "HyperparameterTuning - Save Model": {
+            "Parameters": {
+                "PrimaryContainer": {
+                    "Image": "433757028032.dkr.ecr.us-west-2.amazonaws.com/xgboost:latest",
+                    "Environment": {},
+                    "ModelDataUrl.$": "$.body.modelDataUrl"
+                },
+                "ExecutionRoleArn": "arn:aws:iam::012345678912:role/StepFunctionsSample-SageM-SageMakerAPIExecutionRol-1MNH1VS5CGGOG",
+                "ModelName.$": "$.body.bestTrainingJobName"
+            },
+            "Resource": "arn:aws:states:::sagemaker:createModel",
+            "Type": "Task",
+            "Next": "Extract Model Name"
+        },
+        "Extract Model Name": {
+            "Resource": "arn:aws:lambda:us-west-2:012345678912:function:StepFunctionsSample-SageM-LambdaToExtractModelName-8FUOB30SM5EM",
+            "Type": "Task",
+            "Next": "Batch transform"
+        },
+        "Batch transform": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sagemaker:createTransformJob.sync",
+            "Parameters": {
+                "ModelName.$": "$.body.jobName",
+                "TransformInput": {
+                    "CompressionType": "None",
+                    "ContentType": "text/csv",
+                    "DataSource": {
+                        "S3DataSource": {
+                            "S3DataType": "S3Prefix",
+                            "S3Uri": "s3://stepfunctionssample-sagemak-bucketformodelanddata-80fblmdlcs9f/csv/test.csv"
+                        }
+                    }
+                },
+                "TransformOutput": {
+                    "S3OutputPath": "s3://stepfunctionssample-sagemak-bucketformodelanddata-80fblmdlcs9f/output"
+                },
+                "TransformResources": {
+                    "InstanceCount": 1,
+                    "InstanceType": "ml.m4.xlarge"
+                },
+                "TransformJobName.$": "$.body.jobName"
+            },
+            "End": true
+        }
+    }
+}

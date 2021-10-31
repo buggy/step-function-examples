@@ -1,0 +1,43 @@
+{
+    "StartAt": "Generate example log",
+    "States": {
+      "Generate example log": {
+        "Resource": "arn:aws:lambda:us-east-1:111122223333:function:StepFunctionsSample-Athena-LambdaForDataGeneration-AKIAIOSFODNN7EXAMPLE",
+        "Type": "Task",
+        "Next": "Run Glue crawler"
+      },
+      "Run Glue crawler": {
+        "Resource": "arn:aws:lambda:us-east-1:111122223333:function:StepFunctionsSample-Athen-LambdaForInvokingCrawler-AKIAI44QH8DHBEXAMPLE",
+        "Type": "Task",
+        "Next": "Start an Athena query"
+      },
+      "Start an Athena query": {
+        "Resource": "arn:aws:states:::athena:startQueryExecution.sync",
+        "Parameters": {
+          "QueryString": "SELECT * FROM \"athena-sample-project-db-wJalrXUtnFEMI\".\"log\" limit 1",
+          "WorkGroup": "stepfunctions-athena-sample-project-workgroup-wJalrXUtnFEMI"
+        },
+        "Type": "Task",
+        "Next": "Get query results"
+      },
+      "Get query results": {
+        "Resource": "arn:aws:states:::athena:getQueryResults",
+        "Parameters": {
+          "QueryExecutionId.$": "$.QueryExecution.QueryExecutionId"
+        },
+        "Type": "Task",
+        "Next": "Send query results"
+      },
+      "Send query results": {
+        "Resource": "arn:aws:states:::sns:publish",
+        "Parameters": {
+          "TopicArn": "arn:aws:sns:us-east-1:111122223333:StepFunctionsSample-AthenaDataQueryd1111-2222-3333-777788889999-SNSTopic-ANPAJ2UCCR6DPCEXAMPLE",
+          "Message": {
+            "Input.$": "$.ResultSet.Rows"
+          }
+        },
+        "Type": "Task",
+        "End": true
+      }
+    }
+  }

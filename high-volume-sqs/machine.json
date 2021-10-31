@@ -1,0 +1,46 @@
+{
+    "Comment": "An example of using Express workflows to run text processing for each message sent from an SQS queue.",
+    "StartAt": "Decode base64 string",
+    "States": {
+      "Decode base64 string": {
+        "Type": "Task",
+        "Resource": "arn:<PARTITION>:states:::lambda:invoke",
+        "OutputPath": "$.Payload",
+        "Parameters": {
+          "FunctionName": "<BASE64_DECODER_LAMBDA_FUNCTION_NAME>",
+          "Payload.$": "$"
+        },
+        "Next": "Generate statistics"
+      },
+      "Generate statistics": {
+        "Type": "Task",
+        "Resource": "arn:<PARTITION>:states:::lambda:invoke",
+        "OutputPath": "$.Payload",
+        "Parameters": {
+          "FunctionName": "<TEXT_STATS_GENERATING_LAMBDA_FUNCTION_NAME>",
+          "Payload.$": "$"
+        },
+        "Next": "Remove special characters"
+      },
+      "Remove special characters": {
+        "Type": "Task",
+        "Resource": "arn:<PARTITION>:states:::lambda:invoke",
+        "OutputPath": "$.Payload",
+        "Parameters": {
+          "FunctionName": "<STRING_CLEANING_LAMBDA_FUNCTION_NAME>",
+          "Payload.$": "$"
+        },
+        "Next": "Tokenize and count"
+      },
+      "Tokenize and count": {
+        "Type": "Task",
+        "Resource": "arn:<PARTITION>:states:::lambda:invoke",
+        "OutputPath": "$.Payload",
+        "Parameters": {
+          "FunctionName": "<TOKENIZING_AND_WORD_COUNTING_LAMBDA_FUNCTION_NAME>",
+          "Payload.$": "$"
+        },
+        "End": true
+      }
+    }
+  }

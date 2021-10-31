@@ -1,0 +1,45 @@
+{
+    "Comment": "Calling APIGW HTTP Endpoint",
+    "StartAt": "Call API",
+    "States": {
+      "Call API": {
+        "Type": "Task",
+        "Resource": "arn:<PARTITION>:states:::apigateway:invoke",
+        "Parameters": {
+          "ApiEndpoint": "<API_ENDPOINT>",
+          "Method": "GET",
+          "AuthType": "IAM_ROLE"
+        },
+        "Next": "Call Successful?"
+      },
+      "Call Successful?": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.StatusCode",
+            "NumericEquals": 200,
+            "Next": "Notify Success"
+          }
+        ],
+        "Default": "Notify Failure"
+      },
+      "Notify Success": {
+        "Type": "Task",
+        "Resource": "arn:<PARTITION>:states:::sns:publish",
+        "Parameters": {
+          "Message": "Call was successful",
+          "TopicArn": "<SNS_TOPIC_ARN>"
+        },
+        "End": true
+      },
+      "Notify Failure": {
+        "Type": "Task",
+        "Resource": "arn:<PARTITION>:states:::sns:publish",
+        "Parameters": {
+          "Message": "Call was not successful",
+          "TopicArn": "<SNS_TOPIC_ARN<"
+        },
+        "End": true
+      }
+    }
+  }

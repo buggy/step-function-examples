@@ -1,0 +1,42 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "sns:Publish"
+            ],
+            "Resource": [
+                "arn:aws:sns:ap-northeast-1:123456789012:FargateTaskNotification-SNSTopic-1XYW5YD5V0M7C"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "ecs:RunTask"
+            ],
+            "Resource": [
+                "arn:aws:ecs:ap-northeast-1:123456789012:task-definition/FargateTaskNotification-ECSTaskDefinition-13YOJT8Z2LY5Q:1"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "ecs:StopTask",
+                "ecs:DescribeTasks"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "events:PutTargets",
+                "events:PutRule",
+                "events:DescribeRule"
+            ],
+            "Resource": [
+                "arn:aws:events:ap-northeast-1:123456789012:rule/StepFunctionsGetEventsForECSTaskRule"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+}

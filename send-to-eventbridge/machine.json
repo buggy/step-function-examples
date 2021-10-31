@@ -1,0 +1,21 @@
+{
+    "Comment": "An example of the Amazon States Language for sending a custom event to Amazon EventBridge",
+    "StartAt": "Send a custom event",
+    "States": {
+      "Send a custom event": {
+        "Resource": "arn:<PARTITION>:states:::events:putEvents",
+        "Type": "Task",
+        "Parameters": {
+          "Entries": [{
+            "Detail": {
+              "Message": "Hello from Step Functions!"
+            },
+            "DetailType": "MessageFromStepFunctions",
+            "EventBusName": "<EVENT_BUS_NAME>",
+            "Source": "my.statemachine"
+          }]
+        },
+        "End": true
+      }
+    }
+  }
